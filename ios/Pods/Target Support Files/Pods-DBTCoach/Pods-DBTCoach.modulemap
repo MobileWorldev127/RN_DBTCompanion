@@ -1,0 +1,6 @@
+module Pods_DBTCoach {
+  umbrella header "Pods-DBTCoach-umbrella.h"
+
+  export *
+  module * { export * }
+}

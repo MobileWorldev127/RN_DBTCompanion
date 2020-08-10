@@ -1,0 +1,218 @@
+import React, { Component, Fragment } from "react";
+import { View, Text, TouchableOpacity, ScrollView, Image } from "react-native";
+import Header from "../../components/Header";
+import DescriptionModal from "../../components/descriptionModal";
+import { translate } from "../../utils/LocalizeUtils";
+import styles from "./styles";
+import { IconList as Icons, moduleColors } from "../../constants";
+import Icon from "react-native-vector-icons/Ionicons";
+import ThemeStyle from "../../styles/ThemeStyle";
+
+export default class EditSkillScreen extends Component {
+  constructor(props) {
+    super(props);
+    const {
+      navigation: {
+        state: { params }
+      }
+    } = props;
+    this.state = {
+      icons: (params && params.data) || [],
+      customIcons: (params && params.customData) || [],
+      module: (params && params.module) || null,
+      hide: (params && params.hide) || [],
+      showDescriptionModal: false,
+      descriptionContent: ""
+    };
+  }
+  showDescriptionModal = type => () =>
+    this.setState({ showDescriptionModal: type });
+  isHidden = id => this.state.hide.indexOf(id) > -1;
+  hideItem = id => {
+    this.props.setLoading(true);
+    this.props
+      .hideSkill(id)
+      .then(res => {
+        console.log("HIDE SKILL", res);
+        let hide = [...this.state.hide];
+        hide.push(id);
+        this.setState({ hide });
+        this.props.getAllCustomPreferencesRequest();
+      })
+      .catch(err => {
+        console.log("HIDE SKILL ERROR", err);
+      })
+      .finally(() => {
+        this.props.setLoading(false);
+      });
+  };
+  showItem = id => {
+    this.props.setLoading(true);
+    this.props
+      .showSkill(id)
+      .then(res => {
+        console.log("SHOW SKILL", res);
+        let hide = [...this.state.hide];
+        hide = hide.filter(item => item !== id);
+        this.setState({ hide });
+        this.props.getAllCustomPreferencesRequest();
+      })
+      .finally(() => {
+        this.props.setLoading(false);
+      });
+  };
+  renderHelp = icon => {
+    this.setState({ showDescriptionModal: true, descriptionContent: icon });
+  };
+
+  renderIcons = (icons, custom = false) => {
+    return (
+      icons &&
+      icons.map((data, i) => (
+        <ListButton
+          key={i}
+          title={data.title}
+          icon={Icons[data.icon.split(".")[0]]}
+          onHideToggle={() =>
+            this.isHidden(data.id)
+              ? this.showItem(data.id)
+              : this.hideItem(data.id)
+          }
+          hidden={this.isHidden(data.id)}
+          onHelp={() => this.renderHelp(data)}
+          custom={custom}
+          editSkill={this.editSkill}
+          data={data}
+          color={
+            moduleColors[this.state.module]
+              ? moduleColors[this.state.module]
+              : ThemeStyle.accentColor
+          }
+        />
+      ))
+    );
+  };
+  addSkill = () => {
+    if (this.props.isSubscribed) {
+      this.props.navigation.navigate("AddSkillScreen", {
+        module: this.state.module,
+        onGoBack: () => {
+          this.props.getAllCustomPreferencesRequest();
+          // this.getCustomPreferences();
+        }
+      });
+    } else {
+      this.props.showSubscription();
+    }
+  };
+  editSkill = data => {
+    if (this.props.isSubscribed) {
+      this.props.navigation.navigate("AddSkillScreen", {
+        module: this.state.module,
+        mode: "EDIT",
+        data: data,
+        onGoBack: () => {
+          this.props.getAllCustomPreferencesRequest();
+          // this.getCustomPreferences();
+        }
+      });
+    } else {
+      this.props.showSubscription();
+    }
+  };
+
+  componentDidMount() {
+    // this.getCustomPreferences();
+  }
+
+  render() {
+    const {
+      icons,
+      hide,
+      showDescriptionModal,
+      descriptionContent
+    } = this.state;
+    const customIcons = this.props.userSkills[this.state.module];
+    return (
+      <Fragment>
+        <Header
+          title={translate("Edit Skills")}
+          goBack={() => {
+            // this.props.getAllCustomPreferencesRequest();
+            this.props.navigation.goBack(null);
+          }}
+          rightIcon={() => (
+            <Icon name="ios-add" size={35} color={ThemeStyle.accentColor} />
+          )}
+          onRightIconClick={this.addSkill}
+        />
+        <ScrollView>
+          {this.renderIcons(icons)}
+          {this.renderIcons(customIcons, true)}
+        </ScrollView>
+        <DescriptionModal
+          visible={showDescriptionModal}
+          onClose={this.showDescriptionModal(false)}
+          content={descriptionContent}
+        />
+      </Fragment>
+    );
+  }
+}
+
+const ListButton = props => {
+  return (
+    <View style={[styles.list, props.style]}>
+      <View style={{ flexDirection: "row", flex: 8 }}>
+        <Image
+          source={props.icon}
+          style={{
+            width: 20,
+            height: 20,
+            marginRight: 10,
+            tintColor: props.color
+          }}
+        />
+        <Text style={styles.label}>{props.title}</Text>
+      </View>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          flex: 2
+        }}
+      >
+        {props.custom && (
+          <TouchableOpacity
+            onPress={() => {
+              props.editSkill(props.data);
+            }}
+            style={{ marginHorizontal: 10 }}
+          >
+            <Icon name={"md-create"} size={19} color={ThemeStyle.textColor} />
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity
+          onPress={props.onHideToggle}
+          style={{ marginHorizontal: 10 }}
+        >
+          <Icon
+            name={props.hidden ? "ios-eye-off" : "ios-eye"}
+            size={25}
+            color={ThemeStyle.textColor}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity style={{ marginLeft: 10 }} onPress={props.onHelp}>
+          <Icon
+            name="ios-help-circle-outline"
+            size={22}
+            color={ThemeStyle.textColor}
+          />
+        </TouchableOpacity>
+        {/* <TouchableOpacity onPress={props.onHideToggle}>
+          <Icon name={props.hidden?"ios-eye-off-outline":"ios-eye-outline"} size={25} color={theme.revPrimaryColor} />
+        </TouchableOpacity> */}
+      </View>
+    </View>
+  );
+};
